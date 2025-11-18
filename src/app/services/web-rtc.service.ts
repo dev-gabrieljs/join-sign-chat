@@ -5,7 +5,14 @@ import * as SockJS from 'sockjs-client';
 
 interface Peer {
   pc: RTCPeerConnection;
-  remoteStream: MediaStream;
+}
+
+interface SignalMessage {
+  salaId: string;
+  userId: string;
+  targetUserId?: string;
+  tipo: 'offer' | 'answer' | 'ice' | 'join' | 'leave';
+  payload: string;
 }
 
 interface RemoteStream {
@@ -13,176 +20,201 @@ interface RemoteStream {
   stream: MediaStream;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class WebRtcService {
-
   private localStream?: MediaStream;
   private stompClient?: Client;
+
   public remoteStreams$ = new Subject<RemoteStream>();
 
   private salaId!: string;
   private userId!: string;
 
-  private peers: Map<string, Peer> = new Map();
+  private peers = new Map<string, Peer>();
 
   constructor() {}
 
-  public async init(salaId: string, userId: string, usersInRoom: string[] = []) {
+  public async init(
+    salaId: string,
+    userId: string,
+    usersInRoom: string[] = []
+  ) {
     this.salaId = salaId;
-    this.userId = userId;
 
-    try {
-      // Acessa a mídia local (vídeo e áudio)
-      this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    } catch (err) {
-      console.warn('Não foi possível acessar a câmera/microfone:', err);
-      this.localStream = new MediaStream();
-    }
+    const stableId = localStorage.getItem('userId') || userId;
+    localStorage.setItem('userId', stableId);
+    this.userId = stableId;
 
-    // Inicializa o cliente STOMP para comunicação com o servidor
-    this.stompClient = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
-      reconnectDelay: 5000
+    // local stream
+    this.localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
     });
 
-    // Conecta ao servidor e subscreve ao tópico da sala
+    // websocket
+    this.stompClient = new Client({
+      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      reconnectDelay: 3000,
+    });
+
     await new Promise<void>((resolve) => {
       this.stompClient!.onConnect = async () => {
-        console.log('Conectado ao WebSocket');
-        this.stompClient!.subscribe(`/topic/room.${this.salaId}`, (message) => {
-          const data = JSON.parse(message.body);
-          this.handleMessage(data);
-        });
 
-        // Cria PeerConnections para os outros usuários
+        // escuta minhas mensagens
+        this.stompClient!.subscribe(
+          `/topic/room.${this.salaId}.${this.userId}`,
+          (message) => {
+            const data: SignalMessage = JSON.parse(message.body);
+            this.handleMessage(data);
+          }
+        );
+
+        // notifico meu join
+        this.sendMessage('join', '', undefined);
+
+        /**
+         * ⚠️ AQUI A REGRA CORRETA:
+         * Se eu entrei agora, eu devo ser OFFERER para TODOS que estavam na sala.
+         */
         for (const otherUserId of usersInRoom) {
           if (otherUserId !== this.userId) {
-            await this.createPeerConnection(otherUserId, true);  // Cria a conexão com os outros usuários
+            await this.createPeerConnection(otherUserId, true); // sempre offer
           }
         }
 
         resolve();
       };
+
       this.stompClient!.activate();
     });
   }
 
   private async createPeerConnection(otherUserId: string, isOfferer: boolean) {
-    if (this.peers.has(otherUserId)) return;  // Evita conexões duplicadas
+    if (this.peers.has(otherUserId)) return;
 
-    const pc = new RTCPeerConnection();
-    const remoteStream = new MediaStream();
-    this.peers.set(otherUserId, { pc, remoteStream });
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+    });
 
-    // Adiciona os fluxos locais de áudio e vídeo à conexão
-    this.localStream!.getTracks().forEach(track => pc.addTrack(track, this.localStream!));
-
-    pc.ontrack = (event) => {
-      event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-      this.remoteStreams$.next({ userId: otherUserId, stream: remoteStream });  // Envia o fluxo remoto para o componente
-    };
+    this.peers.set(otherUserId, { pc });
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        this.sendMessage('ice', JSON.stringify(event.candidate), otherUserId);  // Envia as candidaturas ICE
+        this.sendMessage('ice', JSON.stringify(event.candidate), otherUserId);
       }
     };
 
-    // Cria a oferta (se for o primeiro a conectar)
+    pc.ontrack = (event) => {
+      const stream = event.streams[0];
+      this.remoteStreams$.next({ userId: otherUserId, stream });
+    };
+
+    // envia tracks locais
+    this.localStream!.getTracks().forEach((track) =>
+      pc.addTrack(track, this.localStream!)
+    );
+
+    // offer apenas se pedido
     if (isOfferer) {
-      const offer = await pc.createOffer();
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+
       await pc.setLocalDescription(offer);
-      this.sendMessage('offer', JSON.stringify(offer), otherUserId);  // Envia a oferta
+
+      this.sendMessage('offer', JSON.stringify(offer), otherUserId);
     }
   }
 
-  private sendMessage(tipo: string, payload: string, targetUserId?: string) {
-    if (!this.stompClient?.active) {
-      console.error('STOMP não conectado ainda!');
-      return;
-    }
+  private sendMessage(
+    tipo: SignalMessage['tipo'],
+    payload: string,
+    targetUserId?: string
+  ) {
+    if (!this.stompClient?.active) return;
+
+    const msg: SignalMessage = {
+      salaId: this.salaId,
+      userId: this.userId,
+      targetUserId,
+      tipo,
+      payload,
+    };
 
     this.stompClient.publish({
       destination: '/app/sinalizar',
-      body: JSON.stringify({
-        salaId: this.salaId,
-        userId: this.userId,
-        targetUserId,
-        tipo,
-        payload
-      })
+      body: JSON.stringify(msg),
     });
   }
 
-  private async handleMessage(data: any) {
-  if (data.userId === this.userId) return;  // Ignora mensagens enviadas pelo próprio usuário
+  private async handleMessage(data: SignalMessage) {
+    const otherUserId = data.userId;
 
-  const otherUserId = data.userId;
+    switch (data.tipo) {
+      case 'join':
+        if (otherUserId !== this.userId) {
+          /**
+           * ⚠️ CORREÇÃO AQUI:
+           * Se outro usuário entra DEPOIS de mim,
+           * ELE é quem enviaOffer... não eu.
+           * Então eu crio o peer sem offer.
+           */
+          await this.createPeerConnection(otherUserId, false);
+        }
+        return;
 
-  // Verifica se a conexão com o outro usuário já existe
-  if (!this.peers.has(otherUserId)) {
-    await this.createPeerConnection(otherUserId, false);
-  }
+      case 'offer': {
+        if (!this.peers.has(otherUserId)) {
+          await this.createPeerConnection(otherUserId, false);
+        }
 
-  const peer = this.peers.get(otherUserId);
-  if (!peer) return;
+        const peer = this.peers.get(otherUserId)!.pc;
+        await peer.setRemoteDescription(JSON.parse(data.payload));
 
-  switch (data.tipo) {
-    case 'offer':
-      // Recebe a oferta (offer) de outro usuário
-      if (peer.pc.signalingState !== 'stable') {
-        console.error('Erro: Tentando setar remoteDescription em estado incorreto');
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+
+        this.sendMessage('answer', JSON.stringify(answer), otherUserId);
         return;
       }
-      await peer.pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.payload)));
 
-      // Cria a resposta (answer)
-      const answer = await peer.pc.createAnswer();
-      await peer.pc.setLocalDescription(answer);
+      case 'answer': {
+        const peer = this.peers.get(otherUserId)?.pc;
+        if (!peer) return;
 
-      // Envia a resposta (answer) de volta para o outro peer
-      this.sendMessage('answer', JSON.stringify(answer), otherUserId);
-      break;
-
-    case 'answer':
-      // Recebe a resposta (answer) de outro usuário
-      if (peer.pc.signalingState !== 'have-remote-offer') {
-        console.error('Erro: Tentando setar remoteDescription sem uma oferta válida');
+        await peer.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.payload)));
         return;
       }
-      await peer.pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.payload)));
-      break;
 
-    case 'ice':
-      // Recebe o ICE Candidate de outro usuário
-      try {
-        await peer.pc.addIceCandidate(JSON.parse(data.payload));
-      } catch (err) {
-        console.error('Erro ao adicionar ICE candidate:', err);
+      case 'ice': {
+        const peer = this.peers.get(otherUserId)?.pc;
+        if (!peer) return;
+
+        try {
+          await peer.addIceCandidate(JSON.parse(data.payload));
+        } catch (err) {
+          console.error('Erro ICE:', err);
+        }
+        return;
       }
-      break;
+    }
   }
-}
 
-
-  public getLocalStream(): MediaStream | undefined {
+  public getLocalStream() {
     return this.localStream;
   }
 
   public close() {
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
-      this.localStream = undefined;
+    for (const peer of this.peers.values()) {
+      peer.pc.close();
     }
 
-    this.peers.forEach(peer => peer.pc.close());
     this.peers.clear();
 
-    if (this.stompClient?.active) {
-      this.stompClient.deactivate();
-      this.stompClient = undefined;
-    }
+    if (this.stompClient?.active) this.stompClient.deactivate();
+
+    if (this.localStream)
+      this.localStream.getTracks().forEach((t) => t.stop());
   }
 }

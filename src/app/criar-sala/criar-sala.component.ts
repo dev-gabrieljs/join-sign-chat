@@ -27,21 +27,23 @@ export class CriarSalaComponent {
       });
   }
 
-  // Entra em uma sala existente
-  entrarNaSala() {
-    const salaId = this.salaParaEntrar.trim();
-    if (!salaId) return;
+ entrarNaSala() {
+  const salaId = this.salaParaEntrar.trim();
+  if (!salaId) return;
 
-    // Opcional: checar no backend se a sala existe antes de navegar
-    this.http.get<any>(`http://localhost:8080/sala/existe/${salaId}`)
-      .subscribe(res => {
-        if (res.existe) {
-          this.router.navigate(['/sala', salaId]);
-        } else {
-          alert('Sala não encontrada!');
-        }
-      }, error => {
-        console.error('Erro ao verificar sala:', error);
-      });
-  }
+  const userId = localStorage.getItem('userId') || Math.random().toString(36).substring(2, 10);
+  localStorage.setItem('userId', userId);
+
+  this.http.post<any>(`http://localhost:8080/sala/entrar/${salaId}/${userId}`, {})
+    .subscribe(res => {
+      if (res.sucesso) {
+        this.router.navigate(['/sala', salaId]);
+      } else {
+        alert('Sala cheia ou inexistente!');
+      }
+    }, error => {
+      console.error('Erro ao entrar na sala:', error);
+    });
+}
+
 }

@@ -8,11 +8,7 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { WebRtcService } from '../services/web-rtc.service';
 import { HttpClient } from '@angular/common/http';
-
-interface RemoteStream {
-  userId: string;
-  stream: MediaStream;
-}
+import { Subject, firstValueFrom, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-sala',
@@ -21,11 +17,14 @@ interface RemoteStream {
 })
 export class SalaComponent implements OnInit, OnDestroy {
   @ViewChild('localVideo') localVideo!: ElementRef<HTMLVideoElement>;
+  @ViewChild('remoteVideo') remoteVideo!: ElementRef<HTMLVideoElement>;
 
-  remoteStreams: { userId: string, stream: MediaStream }[] = [];
   streamLocal!: MediaStream;
   salaId!: string;
   userId!: string;
+  hasRemoteUser = false;
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
@@ -36,31 +35,46 @@ export class SalaComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     this.salaId = this.route.snapshot.params['id'];
-    this.userId = Math.random().toString(36).substring(2, 10);  // ID único para o usuário
+
+    // reaproveita o mesmo userId entre refreshs
+    this.userId =
+      localStorage.getItem('userId') || crypto.randomUUID().substring(0, 8);
+    localStorage.setItem('userId', this.userId);
 
     try {
-      // Entra na sala no backend
-      const res: any = await this.http.post(
-        `http://localhost:8080/sala/entrar/${this.salaId}/${this.userId}`, {}
-      ).toPromise();
+      // tenta entrar na sala
+      const res: any = await firstValueFrom(
+        this.http.post(
+          `http://localhost:8080/sala/entrar/${this.salaId}/${this.userId}`,
+          {}
+        )
+      );
+
+      if (!res.sucesso) {
+        alert('Sala cheia ou inexistente, não é possível entrar.');
+        this.router.navigate(['/']);
+        return;
+      }
 
       const usuarios: string[] = Array.from(res.usuarios);
       await this.webRtc.init(this.salaId, this.userId, usuarios);
 
-      // Atribui o fluxo local ao elemento de vídeo
+      // vídeo local
       this.streamLocal = this.webRtc.getLocalStream()!;
       this.localVideo.nativeElement.srcObject = this.streamLocal;
 
-      // Subscrição para fluxos remotos
-      this.webRtc.remoteStreams$.subscribe(({ userId, stream }) => {
-        const existing = this.remoteStreams.find(r => r.userId === userId);
-        if (existing) {
-          existing.stream = stream;
-        } else {
-          this.remoteStreams.push({ userId, stream });
-        }
-      });
-
+      // vídeo remoto
+      this.webRtc.remoteStreams$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(({ stream }) => {
+          this.hasRemoteUser = true;
+          setTimeout(() => {
+            if (this.remoteVideo) {
+              this.remoteVideo.nativeElement.srcObject = stream;
+              this.remoteVideo.nativeElement.play().catch(console.error);
+            }
+          });
+        });
     } catch (err) {
       console.error('Erro ao entrar na sala:', err);
       alert('Não foi possível entrar na sala.');
@@ -80,19 +94,8 @@ export class SalaComponent implements OnInit, OnDestroy {
       .forEach((track) => (track.enabled = !isVideoOff));
   }
 
-  trackByUserId(index: number, item: { userId: string; stream: MediaStream }) {
-    return item.userId;
-  }
-
   onVolumeChange(isVolumeOff: boolean) {
-    this.remoteStreams.forEach((r) => {
-      const videos = document.querySelectorAll('video');
-      videos.forEach((video) => {
-        if ((video as HTMLVideoElement).srcObject === r.stream) {
-          (video as HTMLVideoElement).muted = isVolumeOff;
-        }
-      });
-    });
+    this.remoteVideo.nativeElement.muted = isVolumeOff;
   }
 
   onEndCall() {
@@ -101,7 +104,8 @@ export class SalaComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.webRtc.close();
-    this.remoteStreams = []; // Limpar fluxos remotos
   }
 }

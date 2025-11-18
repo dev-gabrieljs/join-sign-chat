@@ -1,0 +1,52 @@
+.container {
+  width: 50%;
+  margin: 50px auto;
+  text-align: center;
+  color: white;
+}
+
+.box {
+  margin: 20px 0;
+  color: white;
+}
+
+
+input {
+  padding: 10px;
+  width: 60%;
+  border-radius: 5px;
+  border: none;
+  outline: none;
+  margin-right: 10px;
+  color: white;         
+  background-color: #333;
+}
+
+
+.btn {
+  background-color: #4caf50;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: white;
+  font-size: 16px;
+  transition: 0.3s;
+}
+
+.btn:hover {
+  background-color: #3e8e41;
+}
+
+.enter {
+  background-color: #2196f3;
+}
+
+.enter:hover {
+  background-color: #1976d2;
+}
+
+.result {
+  margin-top: 10px;
+  font-size: 18px;
+}

@@ -1,0 +1,24 @@
+<div class="container">
+
+  <h1>🎥 Criar ou Entrar na Sala</h1>
+
+  <div class="box">
+    <button (click)="criarSala()" class="btn">Criar Sala</button>
+
+    <div *ngIf="salaCriadaId" class="result">
+      <p><strong>ID da Sala Criada:</strong> {{ salaCriadaId }}</p>
+    </div>
+  </div>
+
+  <hr />
+
+  <div class="box">
+    <input
+      type="text"
+      placeholder="Digite o ID da sala"
+      [(ngModel)]="salaParaEntrar"
+    />
+
+    <button (click)="entrarNaSala()" class="btn enter">Entrar</button>
+  </div>
+</div>

@@ -1,0 +1,24 @@
+<div class="sala-container">
+
+  <h2>Sala: {{ salaId }}</h2>
+
+  <div class="videos">
+    <!-- Vídeo do usuário local -->
+    <video #localVideo autoplay muted playsinline class="video-box"></video>
+
+    <!-- Vídeos dos usuários remotos -->
+    <video *ngFor="let remote of remoteStreams; trackBy: trackByUserId"
+           [srcObject]="remote.stream"
+           autoplay playsinline class="video-box">
+    </video>
+  </div>
+
+  <!-- Componente de Botões de Chat -->
+  <app-chat-buttons
+    (muteChanged)="onMuteChange($event)"
+    (videoChanged)="onVideoChange($event)"
+    (volumeChanged)="onVolumeChange($event)"
+    (endCallClicked)="onEndCall()">
+  </app-chat-buttons>
+
+</div>

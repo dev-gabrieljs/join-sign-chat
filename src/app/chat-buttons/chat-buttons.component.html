@@ -1,0 +1,46 @@
+<div class="rectangle">
+
+  <!-- MICROFONE -->
+  <button class="btn mic-btn" (click)="toggleMute()">
+    <span class="material-symbols-outlined">
+      {{ isMuted ? "mic_off" : "mic" }}
+    </span>
+  </button>
+
+  <!-- VÍDEO -->
+  <button class="btn cam-btn" (click)="toggleVideo()">
+    <span class="material-symbols-outlined">
+      {{ isVideoOff ? "videocam_off" : "videocam" }}
+    </span>
+  </button>
+
+  <!-- ENCERRAR -->
+  <button class="btn end-btn" (click)="endCall()">
+    <span class="material-symbols-outlined">call_end</span>
+  </button>
+
+  <!-- VOLUME -->
+  <button class="btn volume-btn" (click)="toggleVolume()">
+    <span class="material-symbols-outlined">
+      {{ isVolumeOff ? "volume_off" : "volume_up" }}
+    </span>
+  </button>
+
+  <!-- BOTOES ADICIONAIS -->
+  <button
+    class="btn voice_selection_off"
+    [class.pulsing]="isVoiceSelectionActive"
+    (click)="toggleVoiceSelection()"
+  >
+    <span class="material-symbols-outlined">voice_selection_off</span>
+  </button>
+
+  <button
+    class="btn voice_over_off"
+    [class.pulsing]="isVoiceOverActive"
+    (click)="toggleVoiceOver()"
+  >
+    <span class="material-symbols-outlined">voice_over_off</span>
+  </button>
+
+</div>

@@ -1,0 +1,77 @@
+.rectangle {
+  width: 60%;
+  height: 80px;
+  background-color: #1b1b1b;
+  margin: 0 auto;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn {
+  background-color: transparent;
+  border: none;
+  padding: 15px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  color: white;
+}
+
+.mic-btn {
+  color: #4caf50;
+}
+
+.cam-btn {
+  color: #ffeb3b;
+}
+
+.end-btn {
+  color: #f44336;
+}
+
+.volume-btn {
+  color: #2196f3;
+}
+
+.voice_selection_off {
+  color: #9c27b0;
+}
+
+.voice_over_off {
+  color: #e91e63;
+}
+
+.btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.btn:focus {
+  outline: none;
+}
+
+.material-symbols-outlined {
+  font-size: 28px;
+}
+
+.pulsing {
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    transform: scale(1.18);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0px rgba(255, 255, 255, 0.2);
+  }
+}

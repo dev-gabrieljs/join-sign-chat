@@ -1,1 +1,34 @@
-/* You can add global styles to this file, and also import other style files */
+/* Resetando estilos padrões */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Definindo a tipografia base */
+body {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  background-color: #121212; /* Cor de fundo escuro */
+  color: #fff; /* Texto em branco */
+  overflow-x: hidden; /* Impede rolagem horizontal */
+}
+
+/* Remover estilos padrões de botões e outros elementos de formulário */
+button, input, textarea {
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Garantir que os vídeos e outros elementos ocupem a tela conforme necessário */
+video {
+  display: block; /* Remove o espaço abaixo do vídeo */
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Mantém o aspecto do vídeo */
+}

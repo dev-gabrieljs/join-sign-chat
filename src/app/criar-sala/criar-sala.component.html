@@ -1,5 +1,4 @@
 <div class="container">
-
   <h1>🎥 Criar ou Entrar na Sala</h1>
 
   <div class="box">
@@ -18,7 +17,25 @@
       placeholder="Digite o ID da sala"
       [(ngModel)]="salaParaEntrar"
     />
-
     <button (click)="entrarNaSala()" class="btn enter">Entrar</button>
+  </div>
+
+  <div class="audio-settings">
+    <h3>Configurações de Áudio</h3>
+
+    <div class="device-select">
+      <label for="speakers">Alto-falantes/Fones:</label>
+      <select id="speakers" [(ngModel)]="selectedSpeaker" (change)="updateSpeaker()">
+        <option *ngFor="let speaker of speakers" [value]="speaker.deviceId">{{ speaker.label }}</option>
+      </select>
+    </div>
+
+    <div class="device-select">
+      <label for="microphone">Microfone:</label>
+      <select id="microphone" [(ngModel)]="selectedMicrophone" (change)="updateMicrophone()">
+        <option *ngFor="let mic of microphones" [value]="mic.deviceId">{{ mic.label }}</option>
+      </select>
+    </div>
+
   </div>
 </div>

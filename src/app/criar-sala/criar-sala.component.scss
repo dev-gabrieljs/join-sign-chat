@@ -1,5 +1,5 @@
 .container {
-  width: 50%;
+  width: 55%;
   margin: 50px auto;
   text-align: center;
   color: white;
@@ -10,7 +10,6 @@
   color: white;
 }
 
-
 input {
   padding: 10px;
   width: 60%;
@@ -18,10 +17,9 @@ input {
   border: none;
   outline: none;
   margin-right: 10px;
-  color: white;         
+  color: white;
   background-color: #333;
 }
-
 
 .btn {
   background-color: #4caf50;
@@ -50,3 +48,89 @@ input {
   margin-top: 10px;
   font-size: 18px;
 }
+
+.audio-settings {
+  margin-top: 30px;
+  text-align: left;
+  color: white;
+}
+
+.device-select {
+  margin-bottom: 15px;
+}
+
+.device-select label {
+  font-size: 16px;
+  margin-right: 10px;
+}
+
+.device-select select {
+  padding: 8px;
+  border-radius: 5px;
+  border: none;
+  margin-right: 10px;
+  color: white;
+  background-color: #333;
+  width: 100%;
+}
+
+.device-select select:focus {
+  outline: none;
+  border: 1px solid #4caf50;
+}
+
+.audio-settings h3 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.device-select button {
+  margin-top: 5px;
+  padding: 8px 16px;
+  background-color: #2196f3;
+  border: none;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.device-select button:hover {
+  background-color: #1976d2;
+}
+
+.device-select .device-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.device-info .label {
+  font-size: 14px;
+  color: #999;
+}
+
+.device-info .device-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.device-select option {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.error-message {
+  color: red;
+  font-weight: bold;
+  background-color: #f8d7da;
+  padding: 10px;
+  border: 1px solid #f5c6cb;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+

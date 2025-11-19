@@ -22,6 +22,8 @@ interface RemoteStream {
 
 @Injectable({ providedIn: 'root' })
 export class WebRtcService {
+  private apiUrl = 'http://localhost:8080';
+
   private localStream?: MediaStream;
   private stompClient?: Client;
 
@@ -45,22 +47,18 @@ export class WebRtcService {
     localStorage.setItem('userId', stableId);
     this.userId = stableId;
 
-    // local stream
     this.localStream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
 
-    // websocket
     this.stompClient = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      webSocketFactory: () => new SockJS(`${this.apiUrl}/ws`),
       reconnectDelay: 3000,
     });
 
     await new Promise<void>((resolve) => {
       this.stompClient!.onConnect = async () => {
-
-        // escuta minhas mensagens
         this.stompClient!.subscribe(
           `/topic/room.${this.salaId}.${this.userId}`,
           (message) => {
@@ -69,13 +67,7 @@ export class WebRtcService {
           }
         );
 
-        // notifico meu join
         this.sendMessage('join', '', undefined);
-
-        /**
-         * ⚠️ AQUI A REGRA CORRETA:
-         * Se eu entrei agora, eu devo ser OFFERER para TODOS que estavam na sala.
-         */
         for (const otherUserId of usersInRoom) {
           if (otherUserId !== this.userId) {
             await this.createPeerConnection(otherUserId, true); // sempre offer
@@ -109,12 +101,10 @@ export class WebRtcService {
       this.remoteStreams$.next({ userId: otherUserId, stream });
     };
 
-    // envia tracks locais
     this.localStream!.getTracks().forEach((track) =>
       pc.addTrack(track, this.localStream!)
     );
 
-    // offer apenas se pedido
     if (isOfferer) {
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
@@ -154,12 +144,6 @@ export class WebRtcService {
     switch (data.tipo) {
       case 'join':
         if (otherUserId !== this.userId) {
-          /**
-           * ⚠️ CORREÇÃO AQUI:
-           * Se outro usuário entra DEPOIS de mim,
-           * ELE é quem enviaOffer... não eu.
-           * Então eu crio o peer sem offer.
-           */
           await this.createPeerConnection(otherUserId, false);
         }
         return;
@@ -183,7 +167,9 @@ export class WebRtcService {
         const peer = this.peers.get(otherUserId)?.pc;
         if (!peer) return;
 
-        await peer.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.payload)));
+        await peer.setRemoteDescription(
+          new RTCSessionDescription(JSON.parse(data.payload))
+        );
         return;
       }
 
@@ -214,7 +200,6 @@ export class WebRtcService {
 
     if (this.stompClient?.active) this.stompClient.deactivate();
 
-    if (this.localStream)
-      this.localStream.getTracks().forEach((t) => t.stop());
+    if (this.localStream) this.localStream.getTracks().forEach((t) => t.stop());
   }
 }
